@@ -27,14 +27,27 @@ static_resources:
       name: 6
       state: STATE_PREBIND
     address:
-      socket_address: { address: 127.0.0.1, port_value: 10000 }
+      socket_address: { address: 0.0.0.0, port_value: 10000 }
     filter_chains:
     - filters:
-      - name: envoy.filters.network.tcp_proxy
+      - name: envoy.filters.network.http_connection_manager
         typed_config:
-          "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
+          "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
           stat_prefix: ingress_http
-          cluster: some_service_2
+          codec_type: AUTO
+          stream_idle_timeout: 500s
+          route_config:
+            name: local_route
+            virtual_hosts:
+            - name: local_service
+              domains: ["*"]
+              routes:
+              - match: { prefix: "/" }
+                route: { cluster: some_service_2, timeout: 500s }
+          http_filters:
+          - name: envoy.filters.http.router
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
   clusters:
   - name: some_service_2
     connect_timeout: 0.25s
